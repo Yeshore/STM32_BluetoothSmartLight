@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "adc.h"
 #include "i2c.h"
 #include "tim.h"
 #include "usart.h"
@@ -26,7 +25,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "oled.h"
+#include "bh1750.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,7 +36,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define PushdownKey_1 HAL_GPIO_ReadPin(Key_5_GPIO_Port, Key_5_Pin) == GPIO_PIN_RESET
+#define PushdownKey_2 HAL_GPIO_ReadPin(Key_6_GPIO_Port, Key_6_Pin) == GPIO_PIN_RESET
+#define PushdownKey_3 HAL_GPIO_ReadPin(Key_7_GPIO_Port, Key_7_Pin) == GPIO_PIN_RESET
+#define PushdownKey_4 HAL_GPIO_ReadPin(Key_8_GPIO_Port, Key_8_Pin) == GPIO_PIN_RESET
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -68,7 +71,11 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	uint8_t x = 0;
+	uint8_t y = 0;
+	uint8_t i = 0;
+	uint8_t dataValue[2] = {0};
+	float luxValue = 0;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -92,16 +99,67 @@ int main(void)
   MX_I2C1_Init();
   MX_TIM1_Init();
   MX_USART1_UART_Init();
-  MX_ADC1_Init();
   MX_TIM2_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
-
+	OLED_Init();
+	OLED_Clear();
+	OLED_ShowChinese(x + 24 + 16 * 0, y + 2 * 0, 0);
+	OLED_ShowChinese(x + 24 + 16 * 1, y + 2 * 0, 1);
+	OLED_ShowChinese(x + 24 + 16 * 2, y + 2 * 0, 2);
+	OLED_ShowChinese(x + 24 + 16 * 3, y + 2 * 0, 3);
+	OLED_ShowChinese(x + 24 + 16 * 4, y + 2 * 0, 4);
+	OLED_ShowChinese(x + 16 * 0, y + 2 * 2, 5);
+	OLED_ShowChinese(x + 16 * 1, y + 2 * 2, 6);
+	OLED_ShowChar(x + 16 * 2, y + 2 * 2, ':', 16);
+	OLED_ShowChinese(x + 16 * 0, y + 2 * 3, 11);
+	OLED_ShowChinese(x + 16 * 1, y + 2 * 3, 12);
+	OLED_ShowChinese(x + 16 * 2, y + 2 * 3, 13);
+	OLED_ShowChar(x + 16 * 3, y + 2 * 3, ':', 16);
+	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+		if (PushdownKey_1)
+		{
+			HAL_Delay(50);
+			i += 1;
+		}
+		
+		switch(i%2)
+		{
+			case 0:
+				OLED_ShowChinese(x + 16 * 3, y + 2 * 2, 7);
+			  OLED_ShowChinese(x + 16 * 4, y + 2 * 2, 8);
+			break;
+			case 1:
+				OLED_ShowChinese(x + 16 * 3, y + 2 * 2, 9);
+			  OLED_ShowChinese(x + 16 * 4, y + 2 * 2, 10);
+			break;
+			default:
+				OLED_ShowChinese(x + 16 * 3, y + 2 * 2, 7);
+			  OLED_ShowChinese(x + 16 * 4, y + 2 * 2, 8);
+			break;
+		}
+		
+		if (BH1750_SendCmd(ONCE_H_MODE) == HAL_OK)
+		{
+			;
+		}
+		HAL_Delay(200);
+		if (BH1750_ReadData(dataValue) == HAL_OK)
+		{
+			luxValue = BH1750_GetLux(dataValue);
+		}
+		OLED_ShowNum(x + 16 * 4, y + 2 * 3, luxValue, 4, 16);
+		OLED_ShowChar(x + 16 * 6 + 8 * 1, y + 2 * 3, 'L', 16);
+		OLED_ShowChar(x + 16 * 6 + 8 * 2, y + 2 * 3, 'u', 16);
+		OLED_ShowChar(x + 16 * 6 + 8 * 3, y + 2 * 3, 'x', 16);
+		
+		HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -117,7 +175,6 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -144,12 +201,6 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
-  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
