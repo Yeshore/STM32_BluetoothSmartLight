@@ -4,6 +4,7 @@
 "project\bh1750.o"
 "project\main.o"
 "project\gpio.o"
+"project\dma.o"
 "project\i2c.o"
 "project\tim.o"
 "project\usart.o"
